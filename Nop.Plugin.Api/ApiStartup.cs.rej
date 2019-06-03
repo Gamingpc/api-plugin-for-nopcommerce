@@ -1,0 +1,135 @@
+diff a/Nop.Plugin.Api/ApiStartup.cs b/Nop.Plugin.Api/ApiStartup.cs	(rejected hunks)
+@@ -1,107 +1,115 @@
+ ﻿namespace Nop.Plugin.Api
+ {
+     using System;
+     using System.Collections.Generic;
+     using System.IdentityModel.Tokens.Jwt;
+     using System.IO;
+     using System.Linq;
+     using System.Linq.Dynamic;
+     using System.Reflection;
+-    using System.Security.Cryptography;
+     using System.Security.Cryptography.X509Certificates;
+     using IdentityServer4.EntityFramework.DbContexts;
+     using IdentityServer4.EntityFramework.Entities;
+     using IdentityServer4.Models;
+     using Microsoft.AspNetCore.Authentication.JwtBearer;
+     using Microsoft.AspNetCore.Authorization;
+     using Microsoft.AspNetCore.Builder;
+-    using Microsoft.AspNetCore.Http;
+     using Microsoft.AspNetCore.Rewrite;
+     using Microsoft.EntityFrameworkCore;
+     using Microsoft.Extensions.Configuration;
+     using Microsoft.Extensions.DependencyInjection;
+-    using Microsoft.IdentityModel.Tokens;
+     using Nop.Core;
+     using Nop.Core.Data;
+     using Nop.Core.Infrastructure;
+     using Nop.Plugin.Api.Authorization.Policies;
+     using Nop.Plugin.Api.Authorization.Requirements;
+     using Nop.Plugin.Api.Constants;
+     using Nop.Plugin.Api.Helpers;
+     using Nop.Plugin.Api.IdentityServer.Endpoints;
+     using Nop.Plugin.Api.IdentityServer.Generators;
+     using Nop.Plugin.Api.IdentityServer.Middlewares;
+     using ApiResource = IdentityServer4.EntityFramework.Entities.ApiResource;
+ 
+     public class ApiStartup : INopStartup
+     {
+         // TODO: extract all methods into extensions.
+         public void ConfigureServices(IServiceCollection services, IConfigurationRoot configuration)
+         {
+             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+             
+             AddTokenGenerationPipeline(services);
+ 
+             AddAuthorizationPipeline(services);
+         }
+ 
+         public void Configure(IApplicationBuilder app)
+         {
++            //AddBindingRedirects(app);
++
++            // The default route templates for the Swagger docs and swagger - ui are "swagger/docs/{apiVersion}" and "swagger/ui/index#/{assetPath}" respectively.
++            //app.UseSwagger();
++            //app.UseSwaggerUI(options =>
++            //    {
++            //        //var currentAssembly = Assembly.GetAssembly(this.GetType());
++            //        //var currentAssemblyName = currentAssembly.GetName().Name;
++
++            //        //Needeed for removing the "Try It Out" button from the post and put methods.
++            //        //http://stackoverflow.com/questions/36772032/swagger-5-2-3-supportedsubmitmethods-removed/36780806#36780806
++
++            //        //options.InjectOnCompleteJavaScript($"{currentAssemblyName}.Scripts.swaggerPostPutTryItOutButtonsRemoval.js");
++
++            //        options.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
++            //    }
++            //);
++
+             // This needs to be called here because in the plugin install method identity server is not yet registered.
+             ApplyIdentityServerMigrations(app);
+ 
+             SeedData(app);
+             
+-            var options = new RewriteOptions()
++            var rewriteOptions = new RewriteOptions()
+                 .AddRedirect("oauth/(.*)", "connect/$1", 307)
+                 .AddRedirect("api/token", "connect/token", 307);
+ 
+-            app.UseRewriter(options);
++            app.UseRewriter(rewriteOptions);
+ 
+             app.UseMiddleware<IdentityServerScopeParameterMiddleware>();
+ 
+             ////uncomment only if the client is an angular application that directly calls the oauth endpoint
+             //// app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
+             app.UseAuthentication();
+             app.UseIdentityServer();
++        }
+ 
+-            //// The default route templates for the Swagger docs and swagger - ui are "swagger/docs/{apiVersion}" and "swagger/ui/index#/{assetPath}" respectively.
+-            //app.UseSwagger();
+-            //app.UseSwaggerUI(options =>
+-            //    {
+-            //        var currentAssembly = Assembly.GetAssembly(this.GetType());
+-            //        var currentAssemblyName = currentAssembly.GetName().Name;
+-
+-            //        //         Needeed for removing the "Try It Out" button from the post and put methods.
+-            //        //         http://stackoverflow.com/questions/36772032/swagger-5-2-3-supportedsubmitmethods-removed/36780806#36780806
++        private void AddBindingRedirects(IApplicationBuilder app)
++        {
++            var configManagerHelper = EngineContext.Current.Resolve<IConfigMangerHelper>();
+ 
+-            //        options.InjectOnCompleteJavaScript($"{currentAssemblyName}.Scripts.swaggerPostPutTryItOutButtonsRemoval.js");
+-            //    }
+-            //);
++            configManagerHelper.AddStaticFilesBindingRedirect();
+         }
+-        
++
+         private void AddAuthorizationPipeline(IServiceCollection services)
+         {
+             services.AddAuthorization(options =>
+             {
+                 options.AddPolicy(JwtBearerDefaults.AuthenticationScheme,
+                     policy =>
+                     {
+                         policy.Requirements.Add(new ActiveApiPluginRequirement());
+                         policy.Requirements.Add(new AuthorizationSchemeRequirement());
+                         policy.Requirements.Add(new ActiveClientRequirement());
+                         policy.Requirements.Add(new RequestFromSwaggerOptional());
+                         policy.RequireAuthenticatedUser();
+                     });
+             });
+ 
+             services.AddSingleton<IAuthorizationHandler, ActiveApiPluginAuthorizationPolicy>();
+             services.AddSingleton<IAuthorizationHandler, ValidSchemeAuthorizationPolicy>();
+             services.AddSingleton<IAuthorizationHandler, ActiveClientAuthorizationPolicy>();
+             services.AddSingleton<IAuthorizationHandler, RequestsFromSwaggerAuthorizationPolicy>();
+         }
+ 
+         private void AddTokenGenerationPipeline(IServiceCollection services)
+         {
+             X509Certificate2 cert = CryptoHelper.GetTokenSigningCertificate();
+ 

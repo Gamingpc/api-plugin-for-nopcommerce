@@ -1,0 +1,9 @@
+diff a/Nop.Plugin.Api/Controllers/CustomersController.cs b/Nop.Plugin.Api/Controllers/CustomersController.cs	(rejected hunks)
+@@ -278,7 +278,6 @@
+             if (customerDelta.Dto.RoleIds.Count > 0)
+             {
+                 AddValidRoles(customerDelta, newCustomer);
+-
+                 CustomerService.UpdateCustomer(newCustomer);
+             }
+ 

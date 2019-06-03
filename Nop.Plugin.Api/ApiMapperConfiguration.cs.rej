@@ -1,0 +1,10 @@
+diff a/Nop.Plugin.Api/ApiMapperConfiguration.cs b/Nop.Plugin.Api/ApiMapperConfiguration.cs	(rejected hunks)
+@@ -51,6 +51,8 @@
+ 
+             CreateMap<CustomerRole, CustomerRoleDto>();
+ 
++            CreateMap<Manufacturer, ManufacturerDto>();
++
+             CreateClientToClientApiModelMap();
+ 
+             CreateAddressMap();

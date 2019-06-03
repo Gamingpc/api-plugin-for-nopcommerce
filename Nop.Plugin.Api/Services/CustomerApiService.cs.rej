@@ -1,0 +1,6 @@
+diff a/Nop.Plugin.Api/Services/CustomerApiService.cs b/Nop.Plugin.Api/Services/CustomerApiService.cs	(rejected hunks)
+@@ -1,4 +0,3 @@
+-﻿using System;
+ using System;
+ using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
